@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="utf-8">
+    <title>Earthquake List</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.5.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.5.0/mapbox-gl.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+        }
+
+        #container {
+            display: flex;
+            height: 100vh;
+            flex-direction: row;
+            align-items: stretch;
+        }
+
+        #side-panel {
+            flex-basis: 500px;
+            overflow-y: scroll;
+            background: white;
+            padding: 10px;
+        }
+
+        #map {
+            flex-grow: 1;
+        }
+
+        button {
+            margin-bottom: 10px;
+        }
+
+        table {
+            border-collapse: collapse;
+            border-spacing: 0;
+            width: 100%;
+            border: 1px solid #ddd;
+        }
+
+        th, td {
+            text-align: left;
+            padding: 8px;
+        }
+
+        tr:nth-child(even) {
+            background-color: #f2f2f2;
+        }
+    </style>
+</head>
+
+<body>
+    <main id="container">
+        <div id="side-panel">
+            <h2>Earthquake List</h2>
+            <button id="sort-btn">Sort by Magnitude</button>
+
+            <table>
+                <tr>
+                    <th>id</th>
+                    <th>magnitude</th>
+                    <th>timestamp</th>
+                </tr>
+            </table>
+        </div>
+        <div id="map"></div>
+    </main>
+
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoidHdpY2tzMTIiLCJhIjoiY21oY3Q4N3B5MDZ2ajJqcHJ1a2J2MDJndCJ9._kVEEl26EulxbWBVv52oMQ';
+
+        const map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/satellite-v9',
+            zoom: 5.5,
+            center: [138, 38]
+        });
+
+        async function geojsonFetch() {
+            let response, earthquakes, japan, table;
+
+            response = await fetch('assets/earthquakes.geojson');
+            earthquakes = await response.json();
+
+            response = await fetch('assets/japan.json');
+            japan = await response.json();
+
+            map.on('load', () => {
+                map.addSource('earthquakes', {
+                    type: 'geojson',
+                    data: earthquakes
+                });
+
+                map.addLayer({
+                    id: 'earthquakes-layer',
+                    type: 'circle',
+                    source: 'earthquakes',
+                    paint: {
+                        'circle-radius': 8,
+                        'circle-stroke-width': 2,
+                        'circle-color': 'red',
+                        'circle-stroke-color': 'white'
+                    }
+                });
+
+                map.addSource('japan', {
+                    type: 'geojson',
+                    data: japan
+                });
+
+                map.addLayer({
+                    id: 'japan-layer',
+                    type: 'fill',
+                    source: 'japan',
+                    paint: {
+                        'fill-color': '#0080ff',
+                        'fill-opacity': 0.5
+                    }
+                });
+            });
+
+            table = document.getElementsByTagName("table")[0];
+            for (let i = 0; i < earthquakes.features.length; i++) {
+                let row = table.insertRow(-1);
+                let cell1 = row.insertCell(0);
+                let cell2 = row.insertCell(1);
+                let cell3 = row.insertCell(2);
+
+                cell1.innerHTML = earthquakes.features[i].properties.id;
+                cell2.innerHTML = earthquakes.features[i].properties.mag;
+                cell3.innerHTML = new Date(earthquakes.features[i].properties.time)
+                    .toLocaleDateString("en-US");
+            }
+
+            document.getElementById("sort-btn").addEventListener("click", sortTable);
+        }
+
+        function sortTable() {
+            let table = document.getElementsByTagName("table")[0];
+            let switching = true;
+
+            while (switching) {
+                switching = false;
+                let rows = table.rows;
+
+                for (let i = 1; i < (rows.length - 1); i++) {
+                    let x = parseFloat(rows[i].getElementsByTagName("td")[1].innerHTML);
+                    let y = parseFloat(rows[i + 1].getElementsByTagName("td")[1].innerHTML);
+
+                    if (x < y) { 
+                        rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                        switching = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        geojsonFetch();
+    </script>
+</body>
+</html>
