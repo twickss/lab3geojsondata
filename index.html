@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+    <meta charset="utf-8">
+    <title>US Rainfall Map</title>
+    <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
+    <link href="https://api.mapbox.com/mapbox-gl-js/v2.5.0/mapbox-gl.css" rel="stylesheet">
+    <script src="https://api.mapbox.com/mapbox-gl-js/v2.5.0/mapbox-gl.js"></script>
+    <style>
+        body { margin: 0; padding: 0; }
+        #container { display: flex; height: 100vh; flex-direction: row; align-items: stretch; }
+        #map {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+        }
+        
+        #side-panel {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            width: 350px;
+            max-height: 90vh;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            overflow-y: auto;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+            z-index: 1;
+        }
+        button { margin-bottom: 10px; }
+        table { border-collapse: collapse; width: 100%; border: 1px solid #ddd; }
+        th, td { text-align: left; padding: 8px; }
+        tr:nth-child(even) { background-color: #f2f2f2; }
+
+        @media (max-width: 1024px) {
+            #side-panel {
+                display: none;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <main id="container">
+        <div id="side-panel">
+            <h2>US Rainfall Data</h2>
+            <button id="sort-btn">Sort Alphabetically</button>
+            <table>
+                <tr>
+                    <th>Major US Cities</th>
+                    <th>Rainfall (mm)</th>
+                </tr>
+            </table>
+        </div>
+        <div id="map"></div>
+    </main>
+
+    <script>
+        mapboxgl.accessToken = 'pk.eyJ1IjoidHdpY2tzMTIiLCJhIjoiY21oY3Q4N3B5MDZ2ajJqcHJ1a2J2MDJndCJ9._kVEEl26EulxbWBVv52oMQ';
+
+        const map = new mapboxgl.Map({
+            container: 'map',
+            style: 'mapbox://styles/mapbox/dark-v11',
+            zoom: 3,
+            center: [-98, 39] 
+        });
+
+        async function loadData() {
+            const rainfallResponse = await fetch('assets/rainfall.geojson');
+            const rainfall = await rainfallResponse.json();
+
+            map.on('load', async () => {
+                map.addSource('UStates', {
+                    type: 'geojson',
+                    data: 'assets/UStates.json'
+                });
+                
+                map.addLayer({
+                    id: 'us-states-layer',
+                    type: 'fill',
+                    source: 'UStates',
+                    paint: {
+                        'fill-color': '#0080ff',
+                        'fill-opacity': 0.3,
+                        'fill-outline-color': '#000000'
+                    }
+                });
+
+                map.addSource('rainfall', { type: 'geojson', data: rainfall });
+
+                map.addLayer({
+                    id: 'rainfall-points',
+                    type: 'circle',
+                    source: 'rainfall',
+                    paint: {
+                        'circle-radius': 8,
+                        'circle-color': '#ff0000',
+                        'circle-stroke-width': 2,
+                        'circle-stroke-color': '#ffffff'
+                    }
+                });
+            });
+
+            const table = document.querySelector("table");
+            rainfall.features.forEach(f => {
+                const row = table.insertRow(-1);
+                row.insertCell(0).innerHTML = f.properties.city || "N/A";
+                row.insertCell(1).innerHTML = f.properties.rainfall
+                    ? `${f.properties.rainfall} mm`
+                    : "Unknown";
+            });
+
+            document.getElementById("sort-btn").addEventListener("click", () => {
+                let switching = true;
+                while (switching) {
+                    switching = false;
+                    let rows = table.rows;
+                    for (let i = 1; i < rows.length - 1; i++) {
+                        let x = rows[i].cells[0].innerText.toLowerCase();
+                        let y = rows[i + 1].cells[0].innerText.toLowerCase();
+                        if (x > y) {
+                            rows[i].parentNode.insertBefore(rows[i + 1], rows[i]);
+                            switching = true;
+                            break;
+                        }
+                    }
+                }
+            });
+        }
+
+        loadData();
+    </script>
+</body>
+</html>
+
+
+
+
